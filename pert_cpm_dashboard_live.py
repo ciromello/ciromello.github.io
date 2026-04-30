@@ -28,11 +28,15 @@ if not os.path.exists(MAIN_CSV):
     df_default.to_csv(MAIN_CSV, index=False)
 
 # Load CSV
-df_orig = pd.read_csv(MAIN_CSV)
-
-# Keep a copy of the original in session_state to detect changes
 if "saved_df" not in st.session_state:
-    st.session_state["saved_df"] = df_orig.copy()
+    if os.path.exists(MAIN_CSV):
+        st.session_state["saved_df"] = pd.read_csv(MAIN_CSV)
+    else:
+        st.session_state["saved_df"] = pd.DataFrame(columns=[
+            "Task Name", "Expected Duration", "Depends On",
+            "Baseline Start", "Baseline Finish",
+            "Actual Start", "Actual Finish", "Percent Complete"
+        ])
 
 # -------------------------
 # Sidebar: editor + controls
@@ -59,6 +63,27 @@ if recalc_mode == "On-demand (click Recalculate)":
 else:
     do_recalc = True  # always trigger when Instant
 
+if st.sidebar.button("💾 Save to CSV"):
+    st.session_state["saved_df"].to_csv(MAIN_CSV, index=False)
+    st.sidebar.success("Saved to CSV!")
+
+uploaded_file = st.sidebar.file_uploader("Upload CSV", type="csv")
+
+if uploaded_file:
+    st.session_state["saved_df"] = pd.read_csv(uploaded_file)
+
+csv_download = st.session_state["saved_df"].to_csv(index=False)
+
+st.sidebar.download_button(
+    label="📥 Download CSV",
+    data=csv_download,
+    file_name="PERT_CPM_Project.csv",
+    mime="text/csv"
+)
+
+
+
+
 # -------------------------
 # Auto-save + backup (only when table changed)
 # -------------------------
@@ -81,7 +106,7 @@ if not edited_df.equals(st.session_state["saved_df"]):
     st.session_state["saved_df"] = edited_df.copy()
 
     # Save backup + overwrite CSV right away
-    save_with_backup(df_orig, edited_df)
+    #save_with_backup(df_orig, edited_df)
     # Update df_orig to reflect saved file
     df_orig = edited_df.copy()
 
@@ -236,7 +261,7 @@ if do_recalc:
         planned_df = pd.DataFrame(planned)
 
         # Save baseline back to CSV if auto-fill occurred
-        df.to_csv(MAIN_CSV, index=False)
+        #df.to_csv(MAIN_CSV, index=False)
 
         if show_progress and "Percent Complete" in planned_df.columns:
             # Map percent -> color
